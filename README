@@ -1,0 +1,24 @@
+ActiveRecordOracleExtensions
+============================
+
+This plugin provides Oracle support for adding and removing foreign keys from within a rails migration. It also adds support to the ActiveRecord oracle adapter to
+disable foreign key constraints during the loading of fixtures so that you don't have to worry about the order of creation and inserts of your data via
+your fixtures.
+
+I based this code off of 
+
+atmos.org - http://sample.caboo.se/plugins/atmos/activerecord_foreign_key_extensions 
+
+which was an update for oracle support to the
+ 
+bubbleware.com - http://www.bubbleshare.com/tools/ActiveRecordExtensions.zip
+
+
+
+Example
+=======
+
+Example goes here.
+
+
+Copyright (c) 2008 Rob Christie, released under the MIT license
