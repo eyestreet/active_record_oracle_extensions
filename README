@@ -1,9 +1,13 @@
 ActiveRecordOracleExtensions
 ============================
 
-This plugin provides Oracle support for adding and removing foreign keys from within a rails migration. It also adds support to the ActiveRecord oracle adapter to
-disable foreign key constraints during the loading of fixtures so that you don't have to worry about the order of creation and inserts of your data via
+This plugin provides Oracle support for the following:
+
+-- adding and removing foreign keys from within a rails migration. 
+-- disabling foreign key constraints during the loading of fixtures so that you don't have to worry about the order of creation and inserts of your data via
 your fixtures.
+-- adding and removing synonyms from within a rails migration.
+-- A patch for Rails 2.2 that fixes table alias syntax issues with preloading associations
 
 I based this code off of 
 
@@ -13,12 +17,30 @@ which was an update for oracle support to the
  
 bubbleware.com - http://www.bubbleshare.com/tools/ActiveRecordExtensions.zip
 
-
+However, neither of these seems to be up actively developed so I have rolled the Oracle specific pieces into this plugin.
 
 Example
 =======
 
-Example goes here.
+Adding a foreign key constraint:
+
+def self.up
+    create_table :assets, :force => true do |t|
+      t.integer :media_record_id
+      t.string  :media_file_name
+      t.string  :media_content_type
+      t.integer :media_file_size
+      t.datetime :media_updated_at
+      t.timestamps
+    end
+    add_foreign_key_constraint :assets, :media_record_id, :media_records, :id
+
+ end
+
+Adding a synonym events for foo.events:
+
+add_synonym :events, :foo, :events, :force => true
+
 
 
 Copyright (c) 2008 Rob Christie, released under the MIT license
