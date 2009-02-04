@@ -28,7 +28,7 @@ module Extensions::ActiveRecord
     def synonyms(stream)
       syns = @connection.synonyms
       syns.each do |syn|
-        stream.print " add_synonym #{syn.name.inspect}, #{syn.table_owner.inspect}, #{syn.table_name.inspect}, :force => :true"
+        stream.print " add_synonym #{syn.name.inspect}, #{syn.table_owner.inspect}, #{syn.table_name.inspect}, :force => true"
         stream.puts
       end
       stream.puts unless syns.empty?
