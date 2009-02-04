@@ -59,8 +59,24 @@ module Extensions::ActiveRecord::ConnectionAdapters
       end
     end
 
+    def synonyms
+      select("select synonym_name, table_owner, table_name from user_synonyms").collect do |row|
+        SynonymDefinition.new(row['synonym_name'], row['table_owner'], row['table_name'])
+      end
+    end
 
+    def add_synonym(name,table_owner,table_name,options = {})
+      sql = "create"
+      if options[:force] == true
+        sql << " or replace"
+      end
+      sql << " synonym #{name} for #{table_owner}.#{table_name}"
+      execute sql
+    end
 
+    def drop_synonym(name)
+      execute "drop synonym #{name}"
+    end
 
     # Adds a new foreign key constraint to the table.
     #

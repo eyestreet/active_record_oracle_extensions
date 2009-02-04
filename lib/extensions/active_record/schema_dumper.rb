@@ -13,6 +13,7 @@ module Extensions::ActiveRecord
         next if tbl == "schema_info"
         foreign_key_constraints(tbl, stream)
       end
+      synonyms(stream)
     end
 
     def foreign_key_constraints(table, stream)
@@ -22,6 +23,15 @@ module Extensions::ActiveRecord
         stream.puts
       end
       stream.puts unless keys.empty?
+    end
+
+    def synonyms(stream)
+      syns = @connection.synonyms
+      syns.each do |syn|
+        stream.print " add_synonym #{syn.name.inspect}, #{syn.table_owner.inspect}, #{syn.table_name.inspect}, :force => :true"
+        stream.puts
+      end
+      stream.puts unless syns.empty?
     end
   end
 end
