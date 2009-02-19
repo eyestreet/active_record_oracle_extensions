@@ -1,11 +1,101 @@
 module Extensions::ActiveRecord::ConnectionAdapters
   module OracleAdapter
     def self.included(base)
-      # puts "including oracle adapter"
+      base.class_eval do
+        alias_method_chain :structure_dump, :extensions
+      end
     end
 
 
-# REFERENTIAL INTEGRITY ====================================
+    def structure_dump_with_extensions
+      structure = structure_dump_without_extensions
+      # handle synonyms
+      structure << "-- handle synonyms \n"
+      syns = select_all("select synonym_name, table_owner, table_name from user_synonyms").map  do |row|
+        "create or replace synonym #{row['synonym_name']} for #{row['table_owner']}.#{row['table_name']};\n"
+      end
+      structure << syns.join("")
+      structure << "\n"
+      # indexes
+      structure << "-- handle indexes \n"
+      idxs = tables.inject([]) do |idxs, table|
+        idxds = indexes(table)
+        idxds.map! do |idx|
+          index_type = idx.unique == true ? "UNIQUE" : ""
+          quoted_column_names = idx.columns.map { |e| quote_column_name(e) }.join(", ")
+          sql = "CREATE #{index_type} INDEX #{quote_column_name(idx.name)} on #{quote_table_name(idx.table)} (#{quoted_column_names});\n"
+        end
+        idxs << idxds
+      end
+      structure << idxs.flatten.join("")
+      structure << "\n"
+      # primary keys
+      structure << "-- handle primary keys \n"
+      pidxs = tables.inject([]) do |pidxs, table|
+        pidxds = primary_keys(table)
+        pidxds.map! do |idx|
+          index_type = idx.unique == true ? "UNIQUE" : ""
+           pk_name = idx.name
+          if idx.name.downcase.include?("sys")
+            # come up with a new name
+            pk_name = "pk_#{idx.table}"
+          end
+          quoted_column_names = idx.columns.map { |e| quote_column_name(e) }.join(", ")
+          sql = "ALTER TABLE #{quote_table_name(idx.table)} ADD CONSTRAINT #{quote_column_name(pk_name)} PRIMARY KEY (#{quoted_column_names});\n"
+        end
+        pidxs << pidxds
+      end
+      structure << pidxs.flatten.join("")
+      structure << "\n"
+      # handle foreign keys
+      structure << "-- handle foreign keys \n"
+      fks = select_all("select table_name from user_tables").inject([]) do |fks, table|
+        table_name = table.to_a.first.last
+        fkcs = foreign_key_constraints(table_name)
+        fkcs.map! do |fkcd|
+          constraint_name = "#{table_name}_ibfk_#{fkcd.foreign_key}"
+          if constraint_name.size > 30
+            constraint_name = 'c'+Digest::SHA1.hexdigest(constraint_name)[0,29]
+          end
+          sql = "ALTER TABLE #{table_name} ADD CONSTRAINT #{constraint_name} FOREIGN KEY (#{fkcd.foreign_key}) REFERENCES #{fkcd.reference_table} (#{fkcd.reference_column})"
+          sql << foreign_key_constraint_statement('UPDATE', fkcd.on_update)
+          sql << foreign_key_constraint_statement('DELETE', fkcd.on_delete)
+          sql << ";\n"
+        end
+        fks << fkcs
+      end
+      structure << fks.flatten.join("")
+      structure << "\n"
+    end
+
+    def primary_keys(table_name, name = nil) #:nodoc:
+      result = select_all(<<-SQL, name)
+            SELECT lower(i.index_name) as index_name, i.uniqueness, lower(c.column_name) as column_name
+              FROM all_indexes i, user_ind_columns c
+             WHERE i.table_name = '#{table_name.to_s.upcase}'
+               AND c.index_name = i.index_name
+               AND i.index_name IN (SELECT uc.index_name FROM user_constraints uc WHERE uc.constraint_type = 'P')
+               AND i.owner = sys_context('userenv','session_user')
+              ORDER BY i.index_name, c.column_position
+          SQL
+
+      current_index = nil
+      indexes = []
+
+      result.each do |row|
+        if current_index != row['index_name']
+          indexes << ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, row['index_name'], row['uniqueness'] == "UNIQUE", [])
+          current_index = row['index_name']
+        end
+
+        indexes.last.columns << row['column_name']
+      end
+
+      indexes
+    end
+
+
+    # REFERENTIAL INTEGRITY ====================================
 
     def disable_referential_integrity(&block) #:nodoc:
       sql_constraints = <<-SQL
