@@ -1,6 +1,11 @@
 ActiveRecordOracleExtensions
 ============================
 
+THIS PLUGIN IS DEPRECATED. THESE FEATURES HAVE BEEN ADDED TO THE ActiveRecord Oracle Enhanced Adapter.
+
+http://github.com/rsim/oracle-enhanced
+
+
 This plugin provides Oracle support for the following:
 
 -- adding and removing foreign keys from within a rails migration. 
